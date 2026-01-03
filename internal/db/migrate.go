@@ -8,18 +8,94 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// Change represents a single schema change
+// ColumnDefinition matches pg_migrate's column definition
+type ColumnDefinition struct {
+	Name       string  `json:"name"`
+	DataType   string  `json:"type"`
+	PrimaryKey bool    `json:"primary_key"`
+	NotNull    bool    `json:"not_null"`
+	Nullable   *bool   `json:"nullable,omitempty"`
+	Default    *string `json:"default,omitempty"`
+	Unique     bool    `json:"unique"`
+	References *string `json:"references,omitempty"`
+}
+
+// IndexDefinition matches pg_migrate's index definition
+type IndexDefinition struct {
+	Name      string   `json:"name"`
+	Table     *string  `json:"table,omitempty"`
+	Columns   []string `json:"columns"`
+	Unique    bool     `json:"unique"`
+	Method    *string  `json:"method,omitempty"`
+	Condition *string  `json:"condition,omitempty"`
+}
+
+// Change represents a single schema change from pg_migrate
+// The JSON uses tagged unions with "type" field for change type
 type Change struct {
-	ChangeType  string  `json:"change_type"`
-	Schema      string  `json:"schema,omitempty"`
-	Table       string  `json:"table,omitempty"`
-	Column      string  `json:"column,omitempty"`
-	Index       string  `json:"index,omitempty"`
-	Description string  `json:"description,omitempty"`
-	SQL         string  `json:"sql,omitempty"`
-	Safety      string  `json:"safety"`
-	OldType     *string `json:"old_type,omitempty"`
-	NewType     *string `json:"new_type,omitempty"`
+	// Common fields
+	Type        string `json:"type"`
+	Description string `json:"description,omitempty"`
+	Safety      string `json:"safety"`
+
+	// Schema operations
+	Name string `json:"name,omitempty"` // For CreateSchema, DropSchema
+
+	// Table operations
+	Schema  string             `json:"schema,omitempty"`
+	Table   string             `json:"table,omitempty"`
+	Columns []ColumnDefinition `json:"columns,omitempty"` // For CreateTable
+	Indexes []IndexDefinition  `json:"indexes,omitempty"` // For CreateTable
+
+	// Column operations - column can be string or object
+	Column     json.RawMessage `json:"column,omitempty"`
+	OldType    *string         `json:"old_type,omitempty"`
+	NewType    *string         `json:"new_type,omitempty"`
+	OldDefault *string         `json:"old_default,omitempty"`
+	NewDefault *string         `json:"new_default,omitempty"`
+
+	// Nullable changes
+	FromNullable *bool `json:"from_nullable,omitempty"`
+	ToNullable   *bool `json:"to_nullable,omitempty"`
+
+	// Index operations
+	Index json.RawMessage `json:"index,omitempty"` // IndexDefinition object
+}
+
+// GetColumnName extracts the column name from the Column field
+// which can be either a string or a ColumnDefinition object
+func (c *Change) GetColumnName() string {
+	if c.Column == nil {
+		return ""
+	}
+
+	// Try as string first
+	var colName string
+	if err := json.Unmarshal(c.Column, &colName); err == nil {
+		return colName
+	}
+
+	// Try as ColumnDefinition
+	var colDef ColumnDefinition
+	if err := json.Unmarshal(c.Column, &colDef); err == nil {
+		return colDef.Name
+	}
+
+	return ""
+}
+
+// GetIndexName extracts the index name from the Index field
+func (c *Change) GetIndexName() string {
+	if c.Index == nil {
+		return ""
+	}
+
+	var indexDef IndexDefinition
+	if err := json.Unmarshal(c.Index, &indexDef); err == nil {
+		return indexDef.Name
+	}
+
+	return ""
 }
 
 // PlanResult represents the output of pgmigrate.plan()

@@ -40,55 +40,61 @@ func PrintPlanTerraform(plan *db.PlanResult) {
 }
 
 func printChange(symbol string, colorFn func(...interface{}) string, change db.Change) {
-	switch change.ChangeType {
-	case "CreateSchema":
-		fmt.Printf("  %s %s\n", symbol, colorFn(fmt.Sprintf("CREATE SCHEMA %s", change.Schema)))
+	switch change.Type {
+	case "create_schema":
+		fmt.Printf("  %s %s\n", symbol, colorFn(fmt.Sprintf("CREATE SCHEMA %s", change.Name)))
 
-	case "DropSchema":
-		fmt.Printf("  %s %s\n", symbol, colorFn(fmt.Sprintf("DROP SCHEMA %s", change.Schema)))
+	case "drop_schema":
+		fmt.Printf("  %s %s\n", symbol, colorFn(fmt.Sprintf("DROP SCHEMA %s", change.Name)))
 
-	case "CreateTable":
+	case "create_table":
 		fmt.Printf("  %s %s\n", symbol, colorFn(fmt.Sprintf("CREATE TABLE %s.%s", change.Schema, change.Table)))
 
-	case "DropTable":
+	case "drop_table":
 		fmt.Printf("  %s %s\n", symbol, colorFn(fmt.Sprintf("DROP TABLE %s.%s", change.Schema, change.Table)))
 
-	case "AddColumn":
+	case "add_column":
+		colName := change.GetColumnName()
 		fmt.Printf("  %s %s.%s.%s %s\n", symbol,
-			change.Schema, change.Table, colorFn(change.Column), Faint("(add column)"))
+			change.Schema, change.Table, colorFn(colName), Faint("(add column)"))
 
-	case "DropColumn":
+	case "drop_column":
+		colName := change.GetColumnName()
 		fmt.Printf("  %s %s.%s.%s %s\n", symbol,
-			change.Schema, change.Table, colorFn(change.Column), Faint("(drop column)"))
+			change.Schema, change.Table, colorFn(colName), Faint("(drop column)"))
 
-	case "AlterColumnType":
+	case "alter_column_type":
+		colName := change.GetColumnName()
 		typeInfo := ""
 		if change.OldType != nil && change.NewType != nil {
 			typeInfo = fmt.Sprintf(" %s -> %s", *change.OldType, *change.NewType)
 		}
 		fmt.Printf("  %s %s.%s.%s %s%s\n", symbol,
-			change.Schema, change.Table, colorFn(change.Column), Faint("(alter type)"), typeInfo)
+			change.Schema, change.Table, colorFn(colName), Faint("(alter type)"), typeInfo)
 
-	case "AlterColumnNullable":
+	case "alter_column_nullable":
+		colName := change.GetColumnName()
 		fmt.Printf("  %s %s.%s.%s %s\n", symbol,
-			change.Schema, change.Table, colorFn(change.Column), Faint("(alter nullable)"))
+			change.Schema, change.Table, colorFn(colName), Faint("(alter nullable)"))
 
-	case "AlterColumnDefault":
+	case "alter_column_default":
+		colName := change.GetColumnName()
 		fmt.Printf("  %s %s.%s.%s %s\n", symbol,
-			change.Schema, change.Table, colorFn(change.Column), Faint("(alter default)"))
+			change.Schema, change.Table, colorFn(colName), Faint("(alter default)"))
 
-	case "CreateIndex":
-		fmt.Printf("  %s %s %s\n", symbol, colorFn(fmt.Sprintf("CREATE INDEX %s", change.Index)), Faint(fmt.Sprintf("ON %s.%s", change.Schema, change.Table)))
+	case "create_index":
+		indexName := change.GetIndexName()
+		fmt.Printf("  %s %s %s\n", symbol, colorFn(fmt.Sprintf("CREATE INDEX %s", indexName)), Faint(fmt.Sprintf("ON %s.%s", change.Schema, change.Table)))
 
-	case "DropIndex":
-		fmt.Printf("  %s %s %s\n", symbol, colorFn(fmt.Sprintf("DROP INDEX %s", change.Index)), Faint(fmt.Sprintf("ON %s.%s", change.Schema, change.Table)))
+	case "drop_index":
+		fmt.Printf("  %s %s %s\n", symbol, colorFn(fmt.Sprintf("DROP INDEX %s.%s", change.Schema, change.Name)), Faint(""))
 
 	default:
 		// Fallback for unknown change types
 		if change.Description != "" {
 			fmt.Printf("  %s %s\n", symbol, colorFn(change.Description))
 		} else {
-			fmt.Printf("  %s %s\n", symbol, colorFn(change.ChangeType))
+			fmt.Printf("  %s %s\n", symbol, colorFn(change.Type))
 		}
 	}
 }
