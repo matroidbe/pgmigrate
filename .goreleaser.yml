@@ -1,0 +1,57 @@
+version: 2
+
+project_name: pgmigrate
+
+builds:
+  - main: ./cmd/pgmigrate
+    binary: pgmigrate
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/matroidbe/pgmigrate/internal/cmd.Version={{.Version}}
+      - -X github.com/matroidbe/pgmigrate/internal/cmd.GitCommit={{.Commit}}
+    env:
+      - CGO_ENABLED=0
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  github:
+    owner: matroidbe
+    name: pgmigrate
+  draft: false
+  prerelease: auto
+
+brews:
+  - repository:
+      owner: matroidbe
+      name: homebrew-tap
+    homepage: https://github.com/matroidbe/pgmigrate
+    description: Declarative PostgreSQL schema management CLI
+    license: LicenseRef-Matroid-SAL-1.0
+    install: |
+      bin.install "pgmigrate"
+    test: |
+      system "#{bin}/pgmigrate", "version"
